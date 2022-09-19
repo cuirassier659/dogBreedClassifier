@@ -2,6 +2,7 @@
 #  Important Imports
 #######################
 from __future__ import print_function, division
+
 import matplotlib
 import torch
 import torch.utils.data
@@ -10,17 +11,17 @@ import sklearn
 import time
 import os
 import copy
-from sklearn.model_selection import StratifiedGroupKFold, KFold
+# from sklearn.model_selection import StratifiedGroupKFold, KFold
 from torch.optim import lr_scheduler
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 import numpy as np
 import pandas as pd
 import torchvision
+from torch.utils.data import DataLoader
 from torchvision import datasets, models, transforms
 import matplotlib.pyplot as plt
-
-
+matplotlib.use("TkAgg")
 np.random.seed(0)
 
 
@@ -59,8 +60,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #  Data Normalization
 #       For
 #   Pre Processing
+# and pre processing
+# for normalized
+# training subset
 ######################
-image_transforms = transforms.Compose([
+image_normalization = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]
@@ -69,7 +73,7 @@ image_transforms = transforms.Compose([
 pre_processing = transforms.Compose([
     transforms.RandomHorizontalFlip(),
     transforms.RandomResizedCrop(200),
-    transforms.RandomGrayscale()
+    transforms.RandomGrayscale(),
 ])
 
 ###########################
@@ -78,9 +82,27 @@ pre_processing = transforms.Compose([
 #      The DataSet
 ###########################
 imgDir = r'D:/Images'
-imgDSet = datasets.ImageFolder(imgDir)
+imgDSet = datasets.ImageFolder(imgDir, transform=image_normalization)
 
+#####################
+# Doing a
+# Train,Validation
+#      &
+#    Test
+# Splitting
+# Instead of
+#  K-fold
+#####################
 test_l = int(len(imgDSet) * 0.2)
-tr_n_v = len(imgDSet) - test_l
-val_l = int(tr_n_v * 0.2)
-train_l = tr_n_v - val_l
+trn_n_val = len(imgDSet) - test_l
+val_l = int(trn_n_val * 0.2)
+train_l = trn_n_val - val_l
+testSet, valSet, trainSet = torch.utils.data.random_split(imgDSet, [test_l, val_l, train_l])
+
+trainFSet = CustomDataset(trainSet, transform=pre_processing)
+loadedTrain = DataLoader(trainFSet, shuffle=True)
+loadedTest = DataLoader(testSet, shuffle=True)
+loadedVal = DataLoader(valSet, shuffle=True)
+
+
+

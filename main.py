@@ -2,7 +2,6 @@
 #  Important Imports
 #######################
 from __future__ import print_function, division
-
 import matplotlib
 import torch
 import torch.utils.data
@@ -21,6 +20,8 @@ import torchvision
 from torch.utils.data import DataLoader
 from torchvision import datasets, models, transforms
 import matplotlib.pyplot as plt
+from torchvision.models import ResNet101_Weights
+
 matplotlib.use("TkAgg")
 np.random.seed(0)
 
@@ -28,7 +29,8 @@ np.random.seed(0)
 # torch.utils.data.Dataset is an abstract class representing a dataset. Your custom dataset should inherit Dataset
 # and override the following methods:
 # __len__ so that len(dataset) returns the size of the dataset.
-# __getitem__ to support the indexing such that dataset[i] can be used to get iith sample.
+# __getitem__ to supp
+# Sort the indexing such that dataset[i] can be used to get iith sample.
 
 class CustomDataset(torch.utils.data.Dataset):
 
@@ -105,4 +107,27 @@ loadedTest = DataLoader(testSet, shuffle=True)
 loadedVal = DataLoader(valSet, shuffle=True)
 
 
+########################
+#
+# Loading a Pre-Trained
+#       Network
+#   Using ResNet101
+#
+########################
 
+mod = models.resnet101(weights=ResNet101_Weights.IMAGENET1K_V2)
+mod.fc = nn.Sequential(nn.Linear(mod.fc.in_features, 120),
+                       nn.LogSoftmax(dim=1))
+mod
+
+
+########################
+#
+#
+#      Training
+#
+#
+########################
+
+funcLoss = nn.NLLLoss()
+optimizer = optim.SGD(mod.parameters(),lr=0.01)

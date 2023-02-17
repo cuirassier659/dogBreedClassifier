@@ -6,7 +6,7 @@ import matplotlib
 import torch
 import torch.utils.data
 import torch.nn as nn
-import sklearn
+from sklearn.model_selection import train_test_split
 import time
 import os
 import copy
@@ -82,9 +82,13 @@ pre_processing = transforms.Compose([
 #     Images Folder
 #          For
 #      The DataSet
+#          And
+#        Labeling
 ###########################
 imgDir = r'D:/Images'
 imgDSet = datasets.ImageFolder(imgDir, transform=image_normalization)
+trainLabels=imgDSet.class_to_idx;
+
 
 #####################
 # Doing a
@@ -101,10 +105,12 @@ val_l = int(trn_n_val * 0.2)
 train_l = trn_n_val - val_l
 testSet, valSet, trainSet = torch.utils.data.random_split(imgDSet, [test_l, val_l, train_l])
 
-trainFSet = CustomDataset(trainSet, transform=pre_processing)
-loadedTrain = DataLoader(trainFSet, shuffle=True)
+trainFSet = CustomDataset(trainSet,transform=pre_processing)
+loadedTrain = DataLoader(trainFSet,shuffle=True)
 loadedTest = DataLoader(testSet, shuffle=True)
 loadedVal = DataLoader(valSet, shuffle=True)
+
+
 
 
 ########################
@@ -119,15 +125,55 @@ mod = models.resnet101(weights=ResNet101_Weights.IMAGENET1K_V2)
 mod.fc = nn.Sequential(nn.Linear(mod.fc.in_features, 120),
                        nn.LogSoftmax(dim=1))
 mod
+mod.to(device)
 
-
-########################
+###############
 #
+#   Training
 #
-#      Training
-#
-#
-########################
+###############
 
 funcLoss = nn.NLLLoss()
-optimizer = optim.SGD(mod.parameters(),lr=0.01)
+optimizer = optim.SGD(mod.parameters(), lr=0.05)
+n_epochs = 10
+
+for epoch in range(n_epochs):
+    running_loss = 0.0
+    for i, data in enumerate(loadedTrain, 0):
+        inputs, labels = data
+        inputs, labels = inputs.to(device), labels.to(device)
+        
+        optimizer.zero_grad()
+
+        outputs = mod(inputs)
+        loss = funcLoss(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item()
+        if i % 100 == 99:    
+            print('[%d, %5d] loss: %.3f' %
+                  (epoch + 1, i + 1, running_loss / 100))
+            running_loss = 0.0
+    outputs = outputs.to('cpu')
+
+print('Finished Training')
+
+
+correct = 0
+total = 0
+
+# Set the model to evaluation mode
+mod.eval()
+
+# Disable gradient calculation to save memory and processing time
+with torch.no_grad():
+    for data in loadedTest:
+        inputs, labels = data
+        inputs, labels = inputs.to(device), labels.to(device)
+        outputs = mod(inputs)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+accuracy = 100 * correct / total
+print('Accuracy of the network on the test images: %d %%' % accuracy)
